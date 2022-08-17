@@ -1,5 +1,5 @@
 import telebot
-from Command import help, hotels_commands
+from Command import help, hotels_commands, history
 
 bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
 
@@ -33,11 +33,13 @@ def hotel_commands(message) -> None:
 
 @bot.message_handler(commands='history')
 def history(message) -> None:
-    """Отправляет ответ на команды пользователю в Telegram-чате: /history.
+    """
+    Отправляет ответ на команды пользователю в Telegram-чате: /history.
     :param
-    message: message - object
-    from user"""
-    bot.send_message(message.from_user.id, 'Последние 5 запросов.')
+    message: message - object from user
+    """
+    bot.send_message(message.from_user.id, 'История загружается...')
+    bot.register_next_step_handler(message, history.search, bot)
 
 
 if __name__ == '__main__':

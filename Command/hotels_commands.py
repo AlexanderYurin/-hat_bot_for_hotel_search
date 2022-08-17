@@ -5,8 +5,9 @@ from requests import Response
 from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
+from Command import history
 
-count_photo = None
+count_photo: Optional[int] = None
 bot: Optional[TeleBot] = None
 
 headers = {
@@ -44,7 +45,7 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
         querystring = {"adults1": "1", "pageNumber": "1", "destinationId": destination_id, "pageSize": "10",
                        "checkIn": str(today)[0:10],
                        "checkOut": f'{today.year}-{str(today)[5:7]}-{today.day + 1 if (today.day + 1) // 10 != 0 else "0" + str(today.day + 1)}',
-                       "currency": "RUB", "locale": "ru_RU"}
+                       "currency": "USD", "locale": "ru_RU"}
 
         if command == 'lowprice' or command == 'highprice':
             if command == 'lowprice':
@@ -185,7 +186,7 @@ def distance_range(message, response: Dict) -> None:
         for hotel in range(max_index):
             actual_index = hotel - max_index + total_indexes
             distance = response['data']['body']['searchResults']['results'][actual_index]['landmarks'][0]['distance']
-            distance = re.findall(r'[0-9,]+', distance)[0]
+            distance = re.findall(r'[\d,]+', distance)[0]
             distance = float(re.sub(',', '.', distance))
             if not min_distance <= distance <= max_distance:
                 response['data']['body']['searchResults']['results'].pop(actual_index)
@@ -203,6 +204,8 @@ def result_func(message, response: Dict, hotel_count: int) -> None:
     :param hotel_count: num of hotels which will be sent to an user
     :return:
     """
+
+    result = []
 
     if response['result'] == 'ERROR':
         bot.send_message(message.from_user.id, 'Неизвестная ошибка.')
@@ -230,5 +233,10 @@ def result_func(message, response: Dict, hotel_count: int) -> None:
                                    f"{response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]['distance']}"
             price = f"Цена: {response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']} "
             answer = '\n'.join([name, address, distance_from_centre, price])
+
+            result.append(answer)
             bot.send_message(message.from_user.id, answer)
+
+    history.db_table_val(message.from_user.id, '\n'.join(result))
+
     bot.infinity_polling()
