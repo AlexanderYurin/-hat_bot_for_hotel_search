@@ -1,14 +1,13 @@
 import telebot
 from Command import help, hotels_commands
 
-
 bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
 
 
 @bot.message_handler(commands=['help', 'start'])
 def main_commands_catcher(message) -> None:
     """
-    Sends answer of commands to an user in a Telegram-chat: /start and /help.
+    Отправляет ответ на команды пользователю в Telegram-чате: /start и /help.
     :param message: message-object from user
     """
     result: str = ''
@@ -25,11 +24,20 @@ def main_commands_catcher(message) -> None:
 @bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal'])
 def hotel_commands(message) -> None:
     """
-    Sends answer of commands to an user in a Telegram-chat: /lowprice, /highprice, /bestdeal.
+    Отправляет ответ на команды пользователю в Telegram-чате: /lowprice, /highprice, /bestdeal.
     :param message: message-object from user
     """
     bot.send_message(message.from_user.id, 'Введите город, где будет проводится поиск.')
     bot.register_next_step_handler(message, hotels_commands.get_city, message.text[1:], bot)
+
+
+@bot.message_handler(commands='history')
+def history(message) -> None:
+    """Отправляет ответ на команды пользователю в Telegram-чате: /history.
+    :param
+    message: message - object
+    from user"""
+    bot.send_message(message.from_user.id, 'Последние 5 запросов.')
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
 
+count_photo = None
 bot: Optional[TeleBot] = None
 
 headers = {
@@ -16,14 +17,15 @@ headers = {
 
 def get_city(message, command: str, user_bot: TeleBot) -> None:
     """
-    Initial function of hotel commands work.
-    Sends a request with user's city and gets destinationId to continue future work with it.
-    Distributes different commands of hotel commands to corresponding functions.
+    Начальная функция работы гостиничных команд.
+    Отправляет запрос с указанием города пользователя и получает идентификатор назначения
+    для продолжения дальнейшей работы с ним.
+    Распределяет различные команды гостиничных команд по соответствующим функциям.
     :param message: message-object from an user
     :param command: command which user sent
     :param user_bot: TeleBot object
     """
-
+    global bot
     bot = user_bot
     if message.text.isalpha():
         url: str = "https://hotels4.p.rapidapi.com/locations/search"
@@ -54,23 +56,23 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
 
             bot.send_message(message.from_user.id,
                              'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
-            if message.text.lower() == 'да':
 
-                bot.send_message(message.from_user.id,
-                                 'Введите кол-во необходимых фотографий (1-3)')
-                if message.text not in ['1', '2', '3']:
+            @bot.message_handler(content_types=['text'])
+            def answer_photo(message) -> None:
+                if message.text.lower() == 'да':
                     bot.send_message(message.from_user.id,
-                                     'Введите кол-во необходимых фотографий (1-3)')
+                                     'Введите кол-во необходимых фотографий от 1 до 3)')
+                    bot.register_next_step_handler(message, get_count, response)
 
-                count_photo = message.text
+                elif message.text.lower() == 'нет':
+                    bot.send_message(message.from_user.id,
+                                     'Введите количество отелей, которые необходимо вывести в результате.')
+                    bot.register_next_step_handler(message, get_hotel_count, response,
+                                                   len(response['data']['body']['searchResults']['results']))
 
-                bot.send_message(message.from_user.id,
-                                 'Введите количество отелей, которые необходимо вывести в результате.')
-                bot.register_next_step_handler(message, get_hotel_count, response,
-                                               len(response['data']['body']['searchResults']['results']),
-                                               int(count_photo))
-
-
+                else:
+                    bot.send_message(message.from_user.id,
+                                     'Я тебя не понимаю=( Придется начать сначала=(')
 
         else:
             bot.send_message(message.from_user.id, 'Введите диапазон цен отеля в формате "min-max".\nПример: 3000-9999,'
@@ -80,27 +82,54 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
         bot.send_message(message.from_user.id, 'В ответе не должно быть символов, кроме символов текста.')
 
 
-def get_hotel_photo(response: Dict, count: int) -> str:
+def get_count(message, response: Dict) -> None:
+    """Эта функция для проверки значения запроса по фотографиям
+    :param message: message-object
+    :param response: response словарь
+    """
+
+    try:
+        global count_photo
+        if message.text.isdigit() or message.text in '123':
+            count_photo = int(message.text)
+        else:
+            raise TypeError
+    except TypeError:
+        bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 3!')
+
+    else:
+        bot.send_message(message.from_user.id,
+                         'Введите количество отелей, которые необходимо вывести в результате.')
+        bot.register_next_step_handler(message, get_hotel_count, response,
+                                       len(response['data']['body']['searchResults']['results']))
+
+
+def get_hotel_photo(response: Dict, id_count: int) -> str:
+    """Эта функция для генерации фотографий
+       :param response: response словарь
+       :param id_count: id photo
+    """
+
     url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
 
-    querystring = {"id": response['data']['body']['searchResults']['results'][0]['id']}
+    querystring = {"id": response}
 
     response = requests.request("GET", url, headers=headers, params=querystring)
 
     response = json.loads(response.text)
-    return response['hotelImages'][count]['baseUrl'] + '.jpg'
+    return response['hotelImages'][id_count]['baseUrl'].replace('_{size}', '')
 
 
-def get_hotel_count(message, response: Dict, max_hotel_count: int, count_photo: int) -> None:
+def get_hotel_count(message, response: Dict, max_hotel_count: int) -> None:
     """
-    Gets hotel count which user want to see and compares it with maximal hotel count.
-    :param message: message-object from an user
-    :param response: response from user's request
-    :param max_hotel_count: conditional maximal hotel count
+    Эта функция для подсчета максимального значение .
+    :param message: message-object
+    :param response: response словарь
+    :param max_hotel_count: максимальное кол-во отелей
     """
     try:
         user_hotel_count: int = int(message.text)
-    except TypeError:
+    except ValueError:
         bot.send_message(message.from_user.id, 'В ответе должно быть только число.')
     else:
         if user_hotel_count > max_hotel_count:
@@ -109,12 +138,12 @@ def get_hotel_count(message, response: Dict, max_hotel_count: int, count_photo: 
                              f'Кол-во отелей, которое будет выведено: {max_hotel_count}')
         else:
             max_hotel_count = user_hotel_count
-        result_func(message, response, max_hotel_count, count_photo)
+        result_func(message, response, max_hotel_count)
 
 
 def price_range(message, querystring: Dict[str, Union[int, str]]) -> None:
     """
-    Function which gets from user minimal price and maximal price of a hotel and sends a request.
+    Функция, которая получает от пользователя минимальную цену и максимальную цену отеля и отправляет запрос.
     :param message: message-object from an user
     :param querystring: querystring for request
     """
@@ -138,7 +167,7 @@ def price_range(message, querystring: Dict[str, Union[int, str]]) -> None:
 
 def distance_range(message, response: Dict) -> None:
     """
-    Function which sorts a dict considering distance_range.
+    Функция, которая сортирует диктант с учетом distance_range.
     :param message: message-object from an user
     :param response: response from user's request
     """
@@ -165,10 +194,10 @@ def distance_range(message, response: Dict) -> None:
         bot.register_next_step_handler(message, get_hotel_count, response, total_indexes)
 
 
-def result_func(message, response: Dict, hotel_count: int, count_photo: int) -> None:
+def result_func(message, response: Dict, hotel_count: int) -> None:
     """
-    Result function.
-    Sends a result of responses to an user.
+    Функция результата.
+    Отправляет результат ответов пользователю
     :param message: message object from user
     :param response: response from hotels.com API
     :param hotel_count: num of hotels which will be sent to an user
@@ -181,20 +210,25 @@ def result_func(message, response: Dict, hotel_count: int, count_photo: int) -> 
     elif hotel_count == 0:
         bot.send_message(message.from_user.id, 'Извините, но мы не нашли отеля, подходящего бы для Вас :(')
     else:
-        if count_photo is not None:
-            for hotel in range(hotel_count):
+        for hotel in range(hotel_count):
+            if count_photo is not None:
                 for photo in range(count_photo):
-                    bot.send_animation(message.chat.id, get_hotel_count(response, photo))
+                    bot.send_photo(message.chat.id,
+                                   get_hotel_photo(response['data']['body']['searchResults']['results'][hotel]['id'],
+                                                   photo
+                                                   )
+                                   )
 
-                name = f"{hotel + 1}. Название отеля: {response['data']['body']['searchResults']['results'][hotel]['name']}"
-                if 'streetAddress' in response['data']['body']['searchResults']['results'][hotel]['address']:
-                    address = f"Адрес: {response['data']['body']['searchResults']['results'][hotel]['address']['streetAddress']}"
-                else:
-                    address = 'Адрес: отсутствует.'
-                distance_from_centre = f"Расстояние от центра: " \
-                                       f"{response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]['distance']}"
-                price = f"Цена: {response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']} "
-                answer = '\n'.join([name, address, distance_from_centre, price])
-                bot.send_message(message.from_user.id, answer)
-
-
+            name = f"{hotel + 1}. Название отеля: " \
+                   f"{response['data']['body']['searchResults']['results'][hotel]['name']}"
+            if 'streetAddress' in response['data']['body']['searchResults']['results'][hotel]['address']:
+                address = f"Адрес: " \
+                          f"{response['data']['body']['searchResults']['results'][hotel]['address']['streetAddress']}"
+            else:
+                address = 'Адрес: отсутствует.'
+            distance_from_centre = f"Расстояние от центра: " \
+                                   f"{response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]['distance']}"
+            price = f"Цена: {response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']} "
+            answer = '\n'.join([name, address, distance_from_centre, price])
+            bot.send_message(message.from_user.id, answer)
+    bot.infinity_polling()
