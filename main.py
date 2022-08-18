@@ -1,5 +1,6 @@
 import telebot
-from Command import help, hotels_commands, history
+from Command import help, hotels_commands
+import test
 
 bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
 
@@ -39,7 +40,8 @@ def history(message) -> None:
     message: message - object from user
     """
     bot.send_message(message.from_user.id, 'История загружается...')
-    bot.register_next_step_handler(message, history.search, bot)
+    bot.send_message(message.from_user.id, test.search(message.from_user.id))
+    # bot.register_next_step_handler(message, test.search, bot)
 
 
 if __name__ == '__main__':
