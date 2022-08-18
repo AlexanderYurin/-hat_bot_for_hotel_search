@@ -1,7 +1,6 @@
 import re
 import requests
 import json
-from requests import Response
 from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
@@ -34,7 +33,7 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
                                                    "locale": 'ru_RU'}
 
         bot.send_message(message.from_user.id, 'Идет поиск отелей.  Это может занять несколько секунд...')
-        response: Union[Response, Dict] = requests.request("GET", url, headers=headers, params=querystring)
+        response: Union[requests.Response, Dict] = requests.request("GET", url, headers=headers, params=querystring)
         response = json.loads(response.text)
         destination_id: int = int(response['suggestions'][0]['entities'][0]['destinationId'])
 
