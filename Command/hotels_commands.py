@@ -1,10 +1,11 @@
-import re
-import requests
-import json
+from Command import history
 from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
-from Command import history
+import re
+import requests
+import json
+import time
 
 count_photo: Optional[int] = None
 bot: Optional[TeleBot] = None
@@ -33,7 +34,9 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
                                                    "locale": 'ru_RU'}
 
         bot.send_message(message.from_user.id, 'Идет поиск отелей.  Это может занять несколько секунд...')
-        response: Union[requests.Response, Dict] = requests.request("GET", url, headers=headers, params=querystring)
+        response: Union[requests.Response, Dict] = requests.request("GET", url,
+                                                                    headers=headers,
+                                                                    params=querystring)
         response = json.loads(response.text)
         destination_id: int = int(response['suggestions'][0]['entities'][0]['destinationId'])
 
@@ -43,8 +46,26 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
 
         querystring = {"adults1": "1", "pageNumber": "1", "destinationId": destination_id, "pageSize": "10",
                        "checkIn": str(today)[0:10],
-                       "checkOut": f'{today.year}-{str(today)[5:7]}-{today.day + 1 if (today.day + 1) // 10 != 0 else "0" + str(today.day + 1)}',
+                       "checkOut": f'{today.year}-'
+                                   f'{str(today)[5:7]}-'
+                                   f'{today.day + 1 if (today.day + 1) // 10 != 0 else "0" + str(today.day + 1)}',
                        "currency": "USD", "locale": "ru_RU"}
+
+        bot.send_message(message.from_user.id,
+                         'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
+
+        @bot.message_handler(func=lambda message: True, content_types=['text'])
+        def answer_photo(message):
+            if message.text.lower() == 'да':
+                bot.send_message(message.from_user.id,
+                                 'Введите кол-во необходимых фотографий от 1 до 3)')
+
+                bot.register_next_step_handler(message, get_count)
+            else:
+                global count_photo
+                count_photo = None
+
+        time.sleep(5)
 
         if command == 'lowprice' or command == 'highprice':
             if command == 'lowprice':
@@ -55,53 +76,34 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
             response = json.loads(response.text)
 
             bot.send_message(message.from_user.id,
-                             'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
-
-            @bot.message_handler(content_types=['text'])
-            def answer_photo(message) -> None:
-                if message.text.lower() == 'да':
-                    bot.send_message(message.from_user.id,
-                                     'Введите кол-во необходимых фотографий от 1 до 3)')
-                    bot.register_next_step_handler(message, get_count, response)
-
-                elif message.text.lower() == 'нет':
-                    bot.send_message(message.from_user.id,
-                                     'Введите количество отелей, которые необходимо вывести в результате.')
-                    bot.register_next_step_handler(message, get_hotel_count, response,
-                                                   len(response['data']['body']['searchResults']['results']))
-
-                else:
-                    bot.send_message(message.from_user.id,
-                                     'Я тебя не понимаю=( Придется начать сначала=(')
+                             'Введите количество отелей, которые необходимо вывести в результате.')
+            bot.register_next_step_handler(message, get_hotel_count, response,
+                                           len(response['data']['body']['searchResults']['results']))
 
         else:
-            bot.send_message(message.from_user.id, 'Введите диапазон цен отеля в формате "min-max".\nПример: 3000-9999,'
+            bot.send_message(message.from_user.id, 'Введите диапазон цен отеля в формате "min-max".'
+                                                   '\nПример: 3000-9999,'
                                                    'где 3000 - минимальная цена, а 9999 - максимальная.')
             bot.register_next_step_handler(message, price_range, querystring)
     else:
         bot.send_message(message.from_user.id, 'В ответе не должно быть символов, кроме символов текста.')
 
 
-def get_count(message, response: Dict) -> None:
+def get_count(message) -> None:
     """Эта функция для проверки значения запроса по фотографиям
     :param message: message-object
-    :param response: response словарь
     """
 
     try:
         global count_photo
-        if message.text.isdigit() or message.text in '123':
+        if message.text.isdigit() and message.text in '123':
             count_photo = int(message.text)
         else:
             raise TypeError
     except TypeError:
-        bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 3!')
-
-    else:
-        bot.send_message(message.from_user.id,
-                         'Введите количество отелей, которые необходимо вывести в результате.')
-        bot.register_next_step_handler(message, get_hotel_count, response,
-                                       len(response['data']['body']['searchResults']['results']))
+        bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 3!'
+                                               '\n Будет выведено 3 фото!')
+        count_photo = 3
 
 
 def get_hotel_photo(response: Dict, id_count: int) -> str:
@@ -127,18 +129,20 @@ def get_hotel_count(message, response: Dict, max_hotel_count: int) -> None:
     :param response: response словарь
     :param max_hotel_count: максимальное кол-во отелей
     """
-    try:
-        user_hotel_count: int = int(message.text)
-    except ValueError:
-        bot.send_message(message.from_user.id, 'В ответе должно быть только число.')
-    else:
-        if user_hotel_count > max_hotel_count:
-            bot.send_message(message.from_user.id,
-                             f'Вы запрашиваете слишком много отелей.\n'
-                             f'Кол-во отелей, которое будет выведено: {max_hotel_count}')
+    while 1:
+        try:
+            user_hotel_count: int = int(message.text)
+        except ValueError:
+            bot.send_message(message.from_user.id, 'В ответе должно быть только число.')
         else:
-            max_hotel_count = user_hotel_count
-        result_func(message, response, max_hotel_count)
+            if user_hotel_count > max_hotel_count:
+                bot.send_message(message.from_user.id,
+                                 f'Вы запрашиваете слишком много отелей.\n'
+                                 f'Кол-во отелей, которое будет выведено: {max_hotel_count}')
+            else:
+                max_hotel_count = user_hotel_count
+            result_func(message, response, max_hotel_count)
+            break
 
 
 def price_range(message, querystring: Dict[str, Union[int, str]]) -> None:
@@ -237,5 +241,3 @@ def result_func(message, response: Dict, hotel_count: int) -> None:
             bot.send_message(message.from_user.id, answer)
 
     history.db_table_val(message.from_user.id, '\n'.join(result))
-
-    bot.infinity_polling()

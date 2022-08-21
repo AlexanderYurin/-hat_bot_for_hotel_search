@@ -1,11 +1,12 @@
-import telebot
 from Command import help, hotels_commands
-import test
+import telebot
+import sqlite3
 
 bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
 
 
-@bot.message_handler(commands=['help', 'start'])
+@bot.message_handler(regexp=r'.*[Пп]ривет.*')
+@bot.message_handler(commands=['start', 'help'])
 def main_commands_catcher(message) -> None:
     """
     Отправляет ответ на команды пользователю в Telegram-чате: /start и /help.
@@ -40,9 +41,18 @@ def history(message) -> None:
     message: message - object from user
     """
     bot.send_message(message.from_user.id, 'История загружается...')
-    bot.send_message(message.from_user.id, test.search(message.from_user.id))
-    # bot.register_next_step_handler(message, test.search, bot)
+    conn = sqlite3.connect('db.db')
+    cursor = conn.cursor()
+
+    for i_search in cursor.execute('SELECT * FROM test'):
+        if int(i_search[1]) == message.from_user.id:
+            bot.send_message(message.from_user.id, f'{i_search[0]} запрос! \n{i_search[2]}')
+
+    else:
+        bot.send_message(message.from_user.id, 'История пуста!')
+
+    conn.close()
 
 
 if __name__ == '__main__':
-    bot.polling(none_stop=True, interval=0)
+    bot.infinity_polling()
