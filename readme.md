@@ -10,12 +10,13 @@ python main.py
 Бот пользуется бесплатным API сайта hotels.com.
 Ссылка на API: https://rapidapi.com/apidojo/api/hotels4
 
-Для использования бота существует 4 команды:
+Для использования бота существует 5 команд:
 
 /help
 /lowprice
 /highprice
 /bestdeal
+/history
 
 text communication
 

@@ -1,12 +1,11 @@
 from Command import help, hotels_commands
 import telebot
-import sqlite3
+import his
 
 bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
 
 
-@bot.message_handler(regexp=r'.*[Пп]ривет.*')
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start', 'help', 'history'])
 def main_commands_catcher(message) -> None:
     """
     Отправляет ответ на команды пользователю в Telegram-чате: /start и /help.
@@ -17,6 +16,9 @@ def main_commands_catcher(message) -> None:
         bot.send_animation(message.chat.id, r'https://gifer.com/ru/Geu2')
         result = f'{message.from_user.first_name}, добро пожаловать!\n' \
                  f'Я помощник по подбору лучшего предложения в среде отелей для Вас!\n'
+    elif message.text == '/history':
+        bot.send_message(message.from_user.id, f'История загружается...\n{his.history(message.from_user.id)}')
+
     else:
         help.help()
     result += help.help()
@@ -31,27 +33,6 @@ def hotel_commands(message) -> None:
     """
     bot.send_message(message.from_user.id, 'Введите город, где будет проводится поиск.')
     bot.register_next_step_handler(message, hotels_commands.get_city, message.text[1:], bot)
-
-
-@bot.message_handler(commands='history')
-def history(message) -> None:
-    """
-    Отправляет ответ на команды пользователю в Telegram-чате: /history.
-    :param
-    message: message - object from user
-    """
-    bot.send_message(message.from_user.id, 'История загружается...')
-    conn = sqlite3.connect('db.db')
-    cursor = conn.cursor()
-
-    for i_search in cursor.execute('SELECT * FROM test'):
-        if int(i_search[1]) == message.from_user.id:
-            bot.send_message(message.from_user.id, f'{i_search[0]} запрос! \n{i_search[2]}')
-
-    else:
-        bot.send_message(message.from_user.id, 'История пуста!')
-
-    conn.close()
 
 
 if __name__ == '__main__':
