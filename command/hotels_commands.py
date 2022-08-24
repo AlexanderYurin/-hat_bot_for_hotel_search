@@ -1,16 +1,14 @@
-from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
 from config_data.config import RAPID_API_KEY
-import sqlite3
+from command import his
+import telebot
 import re
 import requests
 import json
 import time
 
-count_photo: Optional[int] = None  # проработать не должно быть глобальных переменных
-bot: Optional[TeleBot] = None
-bd: list = []  # проработать не должно быть глобальных переменных
+bot: Optional[telebot.TeleBot] = None
 
 headers = {
     "X-RapidAPI-Key": RAPID_API_KEY,
@@ -18,7 +16,7 @@ headers = {
 }
 
 
-def get_city(message, command: str, user_bot: TeleBot) -> None:
+def get_city(message, command: str, user_bot: telebot.TeleBot) -> None:
     """
     Начальная функция работы гостиничных команд.
     Отправляет запрос с указанием города пользователя и получает идентификатор назначения
@@ -28,9 +26,10 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
     :param command: command1 which user sent
     :param user_bot: TeleBot object
     """
-    global bot, bd
+    global bot
     bot = user_bot
-    bd = []
+    user_filter: str = ''
+    count_photo: Optional[int] = None
     if message.text.isalpha():
         url: str = "https://hotels4.p.rapidapi.com/locations/search"
         querystring: Dict[str: Union[int, str]] = {"query": message.text,
@@ -60,12 +59,27 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
         @bot.message_handler(content_types=['text'])
         def answer_photo(message):
             if message.text.lower() == 'да':
-                bot.send_message(message.from_user.id,
-                                 'Введите кол-во необходимых фотографий от 1 до 3)')
+                markup = telebot.types.InlineKeyboardMarkup()
+                markup.add(telebot.types.InlineKeyboardButton(text='1', callback_data=1))
+                markup.add(telebot.types.InlineKeyboardButton(text='2', callback_data=2))
+                markup.add(telebot.types.InlineKeyboardButton(text='3', callback_data=3))
+                bot.send_message(message.chat.id, 'Выбери кол-во фотографий', reply_markup=markup)
 
-                bot.register_next_step_handler(message, get_count)
+                @bot.callback_query_handler(func=lambda call: True)
+                def query_handler(call):
+                    nonlocal count_photo
+                    if call.data == '1':
+                        count_photo = 1
+                    elif call.data == '2':
+                        count_photo = 2
+                    elif call.data == '3':
+                        count_photo = 3
+                    else:
+                        bot.send_message(message.chat.id, 'Будет выведено 3 фото')
+
             else:
-                global count_photo
+                bot.send_message(message.chat.id, 'Вывод будет без фотографий')
+                nonlocal count_photo
                 count_photo = None
 
         time.sleep(5)
@@ -73,10 +87,10 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
         if command == 'lowprice' or command == 'highprice':
             if command == 'lowprice':
                 querystring["sortOrder"] = "PRICE"
-                bd.append('lowprice')
+                user_filter = 'lowprice'
             else:
                 querystring["sortOrder"] = "PRICE_HIGHEST_FIRST"
-                bd.append('highprice')
+                user_filter = 'highprice'
 
             response = requests.request('GET', url=url, headers=headers, params=querystring)
             response = json.loads(response.text)
@@ -84,33 +98,18 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
             bot.send_message(message.from_user.id,
                              'Введите количество отелей, которые необходимо вывести в результате.')
             bot.register_next_step_handler(message, get_hotel_count, response,
-                                           len(response['data']['body']['searchResults']['results']))
+                                           len(response['data']['body']['searchResults']['results']),
+                                           user_filter, count_photo)
 
         else:
-            bd.append('bestdeal')
+            user_filter = 'bestdeal'
             bot.send_message(message.from_user.id, 'Введите диапазон цен отеля в формате "min-max".'
                                                    '\nПример: 3000-9999,'
                                                    'где 3000 - минимальная цена, а 9999 - максимальная.')
-            bot.register_next_step_handler(message, price_range, querystring)
+            bot.register_next_step_handler(message, price_range, querystring,
+                                           user_filter, count_photo)
     else:
         bot.send_message(message.from_user.id, 'В ответе не должно быть символов, кроме символов текста.')
-
-
-def get_count(message) -> None:
-    """Эта функция для проверки значения запроса по фотографиям
-    :param message: message-object
-    """
-
-    try:
-        global count_photo
-        if message.text.isdigit() and message.text in '123':
-            count_photo = int(message.text)
-        else:
-            raise TypeError
-    except TypeError:
-        bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 3!'
-                                               '\n Будет выведено 3 фото!')
-        count_photo = 3
 
 
 def get_hotel_photo(response: Dict, id_count: int) -> str:
@@ -129,9 +128,11 @@ def get_hotel_photo(response: Dict, id_count: int) -> str:
     return response['hotelImages'][id_count]['baseUrl'].replace('_{size}', '')
 
 
-def get_hotel_count(message, response: Dict, max_hotel_count: int) -> None:
+def get_hotel_count(message, response: Dict, max_hotel_count: int, user_filter: str, count_photo: int) -> None:
     """
     Эта функция для подсчета максимального значение .
+    :param count_photo: parameter number of photos
+    :param user_filter: user_filter: user filter from command
     :param message: message-object
     :param response: response словарь
     :param max_hotel_count: максимальное кол-во отелей
@@ -148,12 +149,14 @@ def get_hotel_count(message, response: Dict, max_hotel_count: int) -> None:
                              f'Кол-во отелей, которое будет выведено: {max_hotel_count}')
         else:
             max_hotel_count = user_hotel_count
-        result_func(message, response, max_hotel_count)
+        result_func(message, response, max_hotel_count, user_filter, count_photo)
 
 
-def price_range(message, querystring: Dict[str, Union[int, str]]) -> None:
+def price_range(message, querystring: Dict[str, Union[int, str]], user_filter: str, count_photo: int) -> None:
     """
     Функция, которая получает от пользователя минимальную цену и максимальную цену отеля и отправляет запрос.
+    :param count_photo: parameter number of photos
+    :param user_filter: user_filter: user filter from command
     :param message: message-object from an user
     :param querystring: querystring for request
     """
@@ -172,12 +175,14 @@ def price_range(message, querystring: Dict[str, Union[int, str]]) -> None:
         else:
             bot.send_message(message.from_user.id,
                              'Введите диапазон расстояния отеля от центра в формате "min-max" (в км). Пример: 0.5-2')
-            bot.register_next_step_handler(message, distance_range, response)
+            bot.register_next_step_handler(message, distance_range, response, user_filter, count_photo)
 
 
-def distance_range(message, response: Dict) -> None:
+def distance_range(message, response: Dict, user_filter: str, count_photo: int) -> None:
     """
     Функция, которая сортирует диктант с учетом distance_range.
+    :param count_photo: parameter number of photos
+    :param user_filter: user_filter: user filter from command
     :param message: message-object from an user
     :param response: response from user's request
     """
@@ -201,19 +206,21 @@ def distance_range(message, response: Dict) -> None:
                 response['data']['body']['searchResults']['results'].pop(actual_index)
                 total_indexes -= 1
         bot.send_message(message.from_user.id, 'Введите количество отелей, которые необходимо вывести в результате.')
-        bot.register_next_step_handler(message, get_hotel_count, response, total_indexes)
+        bot.register_next_step_handler(message, get_hotel_count, response, total_indexes, user_filter, count_photo)
 
 
-def result_func(message, response: Dict, hotel_count: int) -> None:
+def result_func(message, response: Dict, hotel_count: int, user_filter: str, count_photo: int) -> None:
     """
     Функция результата.
     Отправляет результат ответов пользователю
+    :param count_photo: parameter number of photos
+    :param user_filter: user filter from command
     :param message: message object from user
     :param response: response from hotels.com API
     :param hotel_count: num of hotels which will be sent to an user
     :return:
     """
-
+    result = []
     if response['result'] == 'ERROR':
         bot.send_message(message.from_user.id, 'Неизвестная ошибка.')
         print(response['error_message'])
@@ -241,14 +248,6 @@ def result_func(message, response: Dict, hotel_count: int) -> None:
             price = f"Цена: {response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']} "
             answer = '\n'.join([name, address, distance_from_centre, price])
 
-            bd.append(answer)
+            result.append(answer)
             bot.send_message(message.from_user.id, answer)
-
-    conn = sqlite3.connect('db.db')
-    cursor = conn.cursor()
-
-    cursor.execute('INSERT INTO  history (datetime, search, id_user, history) VALUES (?, ?, ?, ?)',
-                   (datetime.now(), bd[0], message.from_user.id, '\n'.join(bd[1:])))
-
-    conn.commit()
-    conn.close()
+    his.add_user_history(user_filter, message.from_user.id, '\n'.join(result))

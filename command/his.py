@@ -1,4 +1,16 @@
 import sqlite3
+from datetime import datetime
+
+
+def add_user_history(user_filter, id_user, user_history):
+    conn = sqlite3.connect('database/db.db')
+    cursor = conn.cursor()
+
+    cursor.execute('INSERT INTO  history (datetime, search, id_user, history) VALUES (?, ?, ?, ?)',
+                   (datetime.now(), user_filter, id_user, user_history))
+
+    conn.commit()
+    conn.close()
 
 
 def history(id_user: int) -> str:
@@ -7,7 +19,7 @@ def history(id_user: int) -> str:
     :param id_user user_id
     """
 
-    conn = sqlite3.connect('../database/db.db')
+    conn = sqlite3.connect('database/db.db')
     cursor = conn.cursor()
     result: list = []
     n = list(cursor.execute('SELECT * FROM history'))
