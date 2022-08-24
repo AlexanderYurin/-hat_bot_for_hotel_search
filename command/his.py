@@ -1,8 +1,13 @@
 import sqlite3
 
 
-def history(id_user: int)-> str:
-    conn = sqlite3.connect('db.db')
+def history(id_user: int) -> str:
+    """
+    Эта функция выводит история пользователя
+    :param id_user user_id
+    """
+
+    conn = sqlite3.connect('../database/db.db')
     cursor = conn.cursor()
     result: list = []
     n = list(cursor.execute('SELECT * FROM history'))
@@ -19,6 +24,3 @@ def history(id_user: int)-> str:
 
     conn.close()
     return '\n'.join(result)
-
-
-

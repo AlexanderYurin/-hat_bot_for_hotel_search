@@ -1,10 +1,11 @@
-from Command import help, hotels_commands
+from command import help, hotels_commands, his
+from config_data.config import BOT_TOKEN
 import telebot
-import his
 
-bot = telebot.TeleBot('5536563248:AAFXGeg_TGu2i-6r-FGHZgaXIqHbz2Vsocg')
+bot = telebot.TeleBot(BOT_TOKEN)
 
 
+@bot.message_handler(regexp=r'[Пп]ривет')
 @bot.message_handler(commands=['start', 'help', 'history'])
 def main_commands_catcher(message) -> None:
     """

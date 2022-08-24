@@ -1,18 +1,19 @@
 from telebot import TeleBot
 from typing import Dict, Union, Optional
 from datetime import datetime
+from config_data.config import RAPID_API_KEY
 import sqlite3
 import re
 import requests
 import json
 import time
 
-count_photo: Optional[int] = None
+count_photo: Optional[int] = None  # проработать не должно быть глобальных переменных
 bot: Optional[TeleBot] = None
-bd: list = []
+bd: list = []  # проработать не должно быть глобальных переменных
 
 headers = {
-    "X-RapidAPI-Key": "e52dd91524mshdb8683e737d8f61p189b7ejsnb6e5ae4f4fd9",
+    "X-RapidAPI-Key": RAPID_API_KEY,
     "X-RapidAPI-Host": "hotels4.p.rapidapi.com"
 }
 
@@ -24,7 +25,7 @@ def get_city(message, command: str, user_bot: TeleBot) -> None:
     для продолжения дальнейшей работы с ним.
     Распределяет различные команды гостиничных команд по соответствующим функциям.
     :param message: message-object from an user
-    :param command: command which user sent
+    :param command: command1 which user sent
     :param user_bot: TeleBot object
     """
     global bot, bd
@@ -182,7 +183,7 @@ def distance_range(message, response: Dict) -> None:
     """
     try:
         min_distance, max_distance = message.text.split('-')
-        min_distance, max_distance = re.sub(',', '.', min_distance), re.sub(',', '.', max_distance)
+        min_distance, max_distance = re.sub(',', '../command1', min_distance), re.sub(',', '../command1', max_distance)
         min_distance, max_distance = float(min_distance), float(max_distance)
     except ValueError:
         bot.send_message(message.from_user.id, 'В ответе должно быть только число.')
@@ -195,7 +196,7 @@ def distance_range(message, response: Dict) -> None:
             actual_index = hotel - max_index + total_indexes
             distance = response['data']['body']['searchResults']['results'][actual_index]['landmarks'][0]['distance']
             distance = re.findall(r'[\d,]+', distance)[0]
-            distance = float(re.sub(',', '.', distance))
+            distance = float(re.sub(',', '../command1', distance))
             if not min_distance <= distance <= max_distance:
                 response['data']['body']['searchResults']['results'].pop(actual_index)
                 total_indexes -= 1
