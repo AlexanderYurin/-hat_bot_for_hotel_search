@@ -18,8 +18,6 @@ python main.py
 /bestdeal
 /history
 
-text communication
-
 
 Описание работы команд.
 /help
