@@ -1,6 +1,8 @@
-from config_data.config import RAPID_API_KEY
 from typing import Dict
+
 import requests
+
+from config_data.config import RAPID_API_KEY
 
 
 def request_to_api(url: str, querystring: Dict) -> str:

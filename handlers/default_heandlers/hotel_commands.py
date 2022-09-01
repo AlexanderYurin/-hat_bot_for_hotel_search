@@ -1,12 +1,14 @@
+import json
+import re
+from datetime import date, timedelta
+from typing import Dict, Union
+
 from telebot.types import Message
+
+from api_hotel import api
+from database.result import result_func
 from loader import bot
 from states.user_info import UserInfoState
-from APIhotel import api
-from typing import Dict, Union
-from datetime import date, timedelta
-from output_result.result import result_func
-import re
-import json
 
 
 @bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal'])
@@ -50,8 +52,6 @@ def get_user_city(message: Message) -> None:
             bot.send_message(message.from_user.id,
                              'Введите количество отелей, которые необходимо вывести в результате.')
             bot.set_state(message.from_user.id, UserInfoState.count_city, message.chat.id)
-        # with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-        #     data['city_id'] = int(response['suggestions'][0]['entities'][0]['destinationId'])
 
     else:
         bot.send_message(message.from_user.id, 'Город может содержать только буквы!')
@@ -120,7 +120,8 @@ def get_price(message: Message) -> None:
                 raise ValueError
 
     except ValueError:
-        bot.send_message(message.from_user.id, 'Максимальная цена должна быть больше минимальной!')
+        bot.send_message(message.from_user.id, 'Максимальная цена должна быть больше минимальной!'
+                                               '\nПример: 3000-9999')
         raise
     except Exception:
         bot.send_message(message.from_user.id, 'В ответе должно быть только числа! Смотри пример!'
@@ -139,10 +140,11 @@ def get_distance(message: Message) -> None:
         min_distance, max_distance = re.sub(',', '.', min_distance), re.sub(',', '.', max_distance)
         min_distance, max_distance = float(min_distance), float(max_distance)
         if max_distance < min_distance:
-            raise ValueError
+            raise TypeError
 
-    except ValueError:
-        bot.send_message(message.from_user.id, 'Максимальное расстояние должно быть больше минимального!')
+    except TypeError:
+        bot.send_message(message.from_user.id, 'Максимальное расстояние должно быть больше минимального!'
+                                               '\nПример: 0.5-2!')
         raise
     except Exception:
         bot.send_message(message.from_user.id, 'В ответе должно быть только числа через дефис!'

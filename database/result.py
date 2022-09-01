@@ -1,8 +1,9 @@
 import re
 from typing import Dict
-from output_result import his
+
+from api_hotel import api
+from database import his
 from loader import bot
-from APIhotel import api
 
 
 def get_hotel_photo(response: Dict, id_count: int) -> str:
@@ -17,13 +18,16 @@ def get_hotel_photo(response: Dict, id_count: int) -> str:
 
     response = api.request_to_api(url, querystring)
     pattern = r'\bhttps://exp.cdn-hotels.com/hotels/\w+/\w+/\w+/\w+/\w+\b'
-    result = re.findall(pattern, response)
     try:
+        result = re.findall(pattern, response)
         if result[id_count].count('_') == 1:
             url = result[id_count].replace('_', '.jpg')
         else:
             raise IndexError
     except IndexError:
+        return 'https://gladston.ru/upload/iblock/b59/img_183363.jpg'
+
+    except TypeError:
         return 'https://gladston.ru/upload/iblock/b59/img_183363.jpg'
 
     else:
@@ -37,7 +41,7 @@ def result_func(message, response: Dict, hotel_count: int, user_filter: str, cou
     :param count_photo: parameter number of photos
     :param user_filter: user filter from output_result
     :param message: message object from user
-    :param response: response from hotels.com APIhotel
+    :param response: response from hotels.com api_hotel
     :param hotel_count: num of hotels which will be sent to an user
     :return:
     """
@@ -53,8 +57,9 @@ def result_func(message, response: Dict, hotel_count: int, user_filter: str, cou
                 for photo in range(count_photo):
                     try:
                         bot.send_photo(message.chat.id,
-                                   get_hotel_photo(response['data']['body']['searchResults']['results'][hotel]['id'],
-                                                   photo))
+                                       get_hotel_photo(
+                                           response['data']['body']['searchResults']['results'][hotel]['id'],
+                                           photo))
                     except IndexError:
                         print('Какая то ошибка')
             try:
@@ -62,19 +67,19 @@ def result_func(message, response: Dict, hotel_count: int, user_filter: str, cou
                        f"{response['data']['body']['searchResults']['results'][hotel]['name']}"
                 if 'streetAddress' in response['data']['body']['searchResults']['results'][hotel]['address']:
                     address = f"Адрес: " \
-                            f"{response['data']['body']['searchResults']['results'][hotel]['address']['streetAddress']}"
+                              f"{response['data']['body']['searchResults']['results'][hotel]['address']['streetAddress']}"
                 else:
                     address = 'Адрес: отсутствует.'
                 if 'distance' in response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]:
 
                     distance_from_centre = f"Расстояние от центра: " \
-                            f"{response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]['distance']}"
+                                           f"{response['data']['body']['searchResults']['results'][hotel]['landmarks'][0]['distance']}"
                 else:
                     distance_from_centre = 'Расстояние от центра отсутствует'
 
                 if 'ratePlan' in response['data']['body']['searchResults']['results'][hotel]:
                     price = f"Цена: " \
-                        f"{response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']}"
+                            f"{response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']}"
                 else:
                     price = 'Стоимость отсутствует'
                 answer = '\n'.join([name, address, distance_from_centre, price])
