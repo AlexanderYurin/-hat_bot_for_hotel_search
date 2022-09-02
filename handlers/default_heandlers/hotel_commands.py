@@ -6,7 +6,7 @@ from typing import Dict, Union
 from telebot.types import Message
 
 from api_hotel import api
-from database.result import result_func
+from database.request_output import result_func
 from loader import bot
 from states.user_info import UserInfoState
 

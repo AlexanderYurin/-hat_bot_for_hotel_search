@@ -2,7 +2,7 @@ import re
 from typing import Dict
 
 from api_hotel import api
-from database import his
+from database import database
 from loader import bot
 
 
@@ -91,4 +91,4 @@ def result_func(message, response: Dict, hotel_count: int, user_filter: str, cou
             else:
                 result.append(answer)
                 bot.send_message(message.from_user.id, answer)
-    his.add_user_history(user_filter, message.from_user.id, '\n'.join(result))
+    database.add_user_history(user_filter, message.from_user.id, '\n'.join(result))
