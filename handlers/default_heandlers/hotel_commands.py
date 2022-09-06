@@ -1,6 +1,6 @@
 import json
 import re
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from typing import Dict, Union
 
 from telebot.types import Message
@@ -61,13 +61,82 @@ def get_user_city(message: Message) -> None:
 def get_count_city(message: Message) -> None:
     if message.text.isdigit() and message.text in '12345':
         bot.send_message(message.from_user.id,
-                         'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
-        bot.set_state(message.from_user.id, UserInfoState.photo, message.chat.id)
+                         f'Введите дату заезда в отель в формате "гггг-мм-дд".'
+                         f'\nПример: {str(date.today())}')
+        bot.set_state(message.from_user.id, UserInfoState.start_date, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['count_city'] = int(message.text)
 
     else:
         bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 5!')
+
+
+@bot.message_handler(state=UserInfoState.start_date)
+def get_start_date(message: Message) -> None:
+    try:
+        datetime.strptime(message.text, '%Y-%m-%d')
+
+        if str(date.today()) > message.text:
+            raise IndexError
+
+        elif message.text >= str(date.today() + timedelta(days=30)):
+            raise TypeError
+
+    except IndexError:
+        bot.send_message(message.from_user.id, f'Не верный формат!'
+                                               f'\nДата заезда не может быть раньше: {str(date.today())}')
+
+    except TypeError:
+        bot.send_message(message.from_user.id, f'Не верный формат!'
+                                               f'\nДата заезда не может быть позже: '
+                                               f'{str(date.today() + timedelta(days=30))}')
+
+    except ValueError:
+        bot.send_message(message.from_user.id, f'Не верный формат!'
+                                               f'Дата заезда должна быть в формате "гггг-мм-дд".'
+                                               f'\nПример: {str(date.today())}')
+
+    else:
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['start_date'] = message.text
+        bot.send_message(message.from_user.id,
+                         f'Введите дату выезда из отеля в формате "гггг-мм-дд".'
+                         f'\nПример: {str(date.today() + timedelta(days=30))}')
+        bot.set_state(message.from_user.id, UserInfoState.finish_date, message.chat.id)
+
+
+@bot.message_handler(state=UserInfoState.finish_date)
+def get_finish_date(message: Message) -> None:
+    try:
+        datetime.strptime(message.text, '%Y-%m-%d')
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            if data['start_date'] > message.text:
+                raise IndexError
+
+        if message.text > str(datetime.strptime(message.text, '%Y-%m-%d') + timedelta(days=30))[:10]:
+            raise TypeError
+
+    except IndexError:
+        bot.send_message(message.from_user.id, f'Не верный формат!'
+                                               f'\nДата выезда не может быть раньше даты заезда!')
+
+    except TypeError:
+        bot.send_message(message.from_user.id, 'Не верный формат!'
+                                               '\nДата выезда не может быть позже: '
+                                               '{}'.format({str(datetime.strptime(message.text, '%Y-%m-%d')
+                                                                + timedelta(days=30))[:10]}))
+
+    except ValueError:
+        bot.send_message(message.from_user.id, f'Не верный формат!'
+                                               f'Дата заезда должна быть в формате "гггг-мм-дд".'
+                                               f'\nПример: {str(date.today())}')
+    else:
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['finish_date'] = message.text
+        bot.send_message(message.from_user.id,
+                         'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
+        bot.set_state(message.from_user.id, UserInfoState.photo, message.chat.id)
 
 
 @bot.message_handler(state=UserInfoState.photo)
@@ -122,9 +191,9 @@ def get_price(message: Message) -> None:
     except ValueError:
         bot.send_message(message.from_user.id, 'Максимальная цена должна быть больше минимальной!'
                                                '\nПример: 3000-9999')
-        raise
+
     except Exception:
-        bot.send_message(message.from_user.id, 'В ответе должно быть только числа! Смотри пример!'
+        bot.send_message(message.from_user.id, 'Ответ должен  соответствовать примеру!'
                                                '\nПример: 3000-9999, '
                                                'где 3000 - минимальная цена, а 9999 - максимальная.')
     else:
@@ -164,8 +233,8 @@ def result(message: Message) -> None:
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
 
         querystring = {"adults1": "1", "pageNumber": "1", "destinationId": data['city_id'], "pageSize": "10",
-                       "checkIn": str(date.today()),
-                       "checkOut": str(date.today() + timedelta(days=1)),
+                       "checkIn": data['start_date'],
+                       "checkOut": data['finish_date'],
                        "currency": "RUB", "locale": "ru_RU"}
 
         if data['output_result'] == '/lowprice':
