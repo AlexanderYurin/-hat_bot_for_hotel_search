@@ -1,10 +1,12 @@
 import re
 from typing import Dict
 
+from telebot.types import InputMediaPhoto, Message
+
 from api_hotel import api
 from database import database
 from loader import bot
-from telebot.types import Message, InputMediaPhoto
+
 
 def get_hotel_photo(response: Dict, id_count: int) -> str:
     """Эта функция для генерации фотографий
