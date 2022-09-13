@@ -1,27 +1,25 @@
 import sqlite3
 from datetime import datetime
 
-conn = sqlite3.connect('data.db')
-cursor = conn.cursor()
-cursor.execute("""CREATE TABLE IF NOT EXISTS history(
-   datetime TEXT,
-   search TEXT,
-   id_user TEXT,
-   history TEXT);
-""")
-conn.commit()
-conn.close()
+with sqlite3.connect('data.db') as conn:
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS history(
+       datetime TEXT,
+       search TEXT,
+       id_user TEXT,
+       history TEXT);
+    """)
+    conn.commit()
 
 
 def add_user_history(user_filter, id_user, user_history):
-    conn = sqlite3.connect('data.db')
-    cursor = conn.cursor()
+    with sqlite3.connect('data.db') as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('INSERT INTO  history (datetime, search, id_user, history) VALUES (?, ?, ?, ?)',
-                   (datetime.now(), user_filter, id_user, user_history))
+        cursor.execute('INSERT INTO  history (datetime, search, id_user, history) VALUES (?, ?, ?, ?)',
+                       (datetime.now(), user_filter, id_user, user_history))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 
 def history(id_user: int) -> str:
@@ -30,23 +28,25 @@ def history(id_user: int) -> str:
     :param id_user user_id
     """
     try:
-        conn = sqlite3.connect('data.db')
-        cursor = conn.cursor()
-        result: list = []
-        n = list(cursor.execute('SELECT * FROM history'))
+        with sqlite3.connect('data.db') as conn:
+            cursor = conn.cursor()
+            result: list = []
+            history_user: list = list(cursor.execute(f'SELECT * FROM history WHERE id_user  = {5320318234}'))
+            if 5 < len(history_user):
+                count_his = 6
+            else:
+                count_his = len(history_user)
 
-        for i_search in range(len(n)):
-            if n[i_search][2] == str(id_user):
-                result.append(f'Время запроса: {n[i_search][0]}'
-                              f'\nФильтр запроса: {n[i_search][1]}'
-                              f'\n{n[i_search][3]}\n')
+            for i_search in range(-count_his, 0):
+                result.append(f'Время запроса: {history_user[i_search][0]}'
+                              f'\nФильтр запроса: {history_user[i_search][1]}'
+                              f'\n{history_user[i_search][3]}\n')
 
-        if len(result) == 0:
-            conn.close()
-            return 'История пуста!'
+            if len(result) == 0:
+                return 'История пуста!'
 
-        conn.close()
-        return '\n'.join(result)
+            return '\n'.join(result)
 
-    except:
+
+    except Exception:
         return 'История пуста!'
