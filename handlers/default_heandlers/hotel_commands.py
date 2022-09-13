@@ -74,12 +74,12 @@ def get_count_city(message: Message) -> None:
 @bot.message_handler(state=UserInfoState.start_date)
 def get_start_date(message: Message) -> None:
     try:
-        datetime.strptime(message.text, '%Y-%m-%d')
+        start_date_user = datetime.strptime(message.text, '%Y-%m-%d')
 
-        if str(date.today()) > message.text:
+        if date.today() > start_date_user.date():
             raise IndexError
 
-        elif message.text >= str(date.today() + timedelta(days=30)):
+        elif start_date_user.date() >= date.today() + timedelta(days=30):
             raise TypeError
 
     except IndexError:
@@ -98,7 +98,7 @@ def get_start_date(message: Message) -> None:
 
     else:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['start_date'] = message.text
+            data['start_date'] = str(start_date_user.date())
         bot.send_message(message.from_user.id,
                          f'Введите дату выезда из отеля в формате "гггг-мм-дд".'
                          f'\nПример: {str(date.today() + timedelta(days=30))}')
@@ -108,13 +108,13 @@ def get_start_date(message: Message) -> None:
 @bot.message_handler(state=UserInfoState.finish_date)
 def get_finish_date(message: Message) -> None:
     try:
-        datetime.strptime(message.text, '%Y-%m-%d')
+        finish_date_user = datetime.strptime(message.text, '%Y-%m-%d')
 
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            if data['start_date'] > message.text:
+            if datetime.strptime(data['start_date'], '%Y-%m-%d') > finish_date_user:
                 raise IndexError
 
-        if message.text > str(datetime.strptime(message.text, '%Y-%m-%d') + timedelta(days=30))[:10]:
+        if finish_date_user > finish_date_user + timedelta(days=30):
             raise TypeError
 
     except IndexError:
@@ -133,7 +133,7 @@ def get_finish_date(message: Message) -> None:
                                                f'\nПример: {str(date.today())}')
     else:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
-            data['finish_date'] = message.text
+            data['finish_date'] = str(finish_date_user.date())
         bot.send_message(message.from_user.id,
                          'Необходимость загрузки и вывода фотографий для каждого отеля («Да/Нет»)')
         bot.set_state(message.from_user.id, UserInfoState.photo, message.chat.id)
