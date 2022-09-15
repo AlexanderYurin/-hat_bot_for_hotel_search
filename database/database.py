@@ -31,7 +31,7 @@ def history(id_user: int) -> str:
         with sqlite3.connect('data.db') as conn:
             cursor = conn.cursor()
             result: list = []
-            history_user: list = list(cursor.execute(f'SELECT * FROM history WHERE id_user  = {5320318234}'))
+            history_user: list = list(cursor.execute(f'SELECT * FROM history WHERE id_user  = {id_user}'))
             if 5 < len(history_user):
                 count_his = 6
             else:
