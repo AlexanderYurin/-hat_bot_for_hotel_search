@@ -63,7 +63,7 @@ def get_count_city(message: Message) -> None:
         bot.send_message(message.from_user.id,
                          f'Введите дату заезда в отель в формате "гггг-мм-дд".'
                          f'\nПример: {str(date.today())}')
-        bot.set_state(message.from_user.id, UserInfoState.start_date, message.chat.id)
+        bot.set_state(message.from_user.id, UserInfoState.check_in, message.chat.id)
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['count_city'] = int(message.text)
 
@@ -71,7 +71,7 @@ def get_count_city(message: Message) -> None:
         bot.send_message(message.from_user.id, 'В ответе должно быть только число от 1 до 5!')
 
 
-@bot.message_handler(state=UserInfoState.start_date)
+@bot.message_handler(state=UserInfoState.check_in)
 def get_start_date(message: Message) -> None:
     try:
         start_date_user = datetime.strptime(message.text, '%Y-%m-%d')
@@ -102,10 +102,10 @@ def get_start_date(message: Message) -> None:
         bot.send_message(message.from_user.id,
                          f'Введите дату выезда из отеля в формате "гггг-мм-дд".'
                          f'\nПример: {str(date.today() + timedelta(days=30))}')
-        bot.set_state(message.from_user.id, UserInfoState.finish_date, message.chat.id)
+        bot.set_state(message.from_user.id, UserInfoState.check_out, message.chat.id)
 
 
-@bot.message_handler(state=UserInfoState.finish_date)
+@bot.message_handler(state=UserInfoState.check_out)
 def get_finish_date(message: Message) -> None:
     try:
         finish_date_user = datetime.strptime(message.text, '%Y-%m-%d')
@@ -228,6 +228,14 @@ def get_distance(message: Message) -> None:
 
 
 def result(message: Message) -> None:
+    """
+    Функция, которая собирает все значения полученные со стадий, и обращается к функции request_output.
+    Сброс стадий.
+    :param message: сообщение от пользователя.
+    :return:
+    """
+
+
     url = "https://hotels4.p.rapidapi.com/properties/list"
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:

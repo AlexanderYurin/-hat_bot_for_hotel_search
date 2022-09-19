@@ -1,1 +1,1 @@
-from . import start, help, history, hotel_commands, echo
+from . import start, help, history, low_high_beast, echo

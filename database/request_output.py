@@ -9,9 +9,11 @@ from loader import bot
 
 
 def get_hotel_photo(response: Dict, id_count: int) -> str:
-    """Эта функция для генерации фотографий
-       :param response: response словарь
-       :param id_count: id photo
+    """Эта функция для генерации фотографий.
+    Делается запрос к API после этого из текста, берутся все ссылки в формате списка.
+       :param response: все данные по отелю в формате Словаря.
+       :param id_count: индекс фото.
+       :return: вощвращает ссылку на фото по индексу
     """
 
     url = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
@@ -36,44 +38,41 @@ def get_hotel_photo(response: Dict, id_count: int) -> str:
 def result_func(message: Message, response: Dict, hotel_count: int, user_filter: str, count_photo: int) -> None:
     """
     Функция результата.
-    Отправляет результат ответов пользователю
-    :param count_photo: parameter number of photos
-    :param user_filter: user filter from output_result
-    :param message: message object from user
-    :param response: response from hotels.com api_hotel
-    :param hotel_count: num of hotels which will be sent to an user
+    Записывает результат ответов в бд.
+    :param count_photo: кол-во фотографий.
+    :param user_filter: команда запроса от пользователя.
+    :param message: сообщение от пользователя.
+    :param response: response из hotels.com api_hotel
+    :param hotel_count: кол-во отелей.
     :return:
     """
     result = []
 
     if response['result'] == 'ERROR':
         bot.send_message(message.from_user.id, 'Неизвестная ошибка.')
-        print(response['error_message'])
     elif hotel_count == 0:
         bot.send_message(message.from_user.id, 'Извините, но мы не нашли отеля, подходящего бы для Вас :(')
     else:
         for hotel in range(hotel_count):
             list_photo = []
             if count_photo is not None:
-               try:
+                try:
                     for photo in range(count_photo):
                         try:
                             list_photo.append(get_hotel_photo(
-                                                     response['data']['body']['searchResults']['results'][hotel]['id'],
-                                                     photo)
+                                response['data']['body']['searchResults']['results'][hotel]['id'],
+                                photo)
                             )
 
 
                         except IndexError:
                             print('Какая то ошибка')
-               except IndexError:
-                   print('Какая то ошибка')
+                except IndexError:
+                    print('Какая то ошибка')
 
-               else:
-                   medias = [InputMediaPhoto(url_photo) for url_photo in list_photo]
-                   bot.send_media_group(message.from_user.id, medias)
-
-
+                else:
+                    medias = [InputMediaPhoto(url_photo) for url_photo in list_photo]
+                    bot.send_media_group(message.from_user.id, medias)
 
             try:
                 id_hotel = response['data']['body']['searchResults']['results'][hotel]['id']
@@ -93,7 +92,7 @@ def result_func(message: Message, response: Dict, hotel_count: int, user_filter:
                     distance_from_centre = 'Расстояние от центра отсутствует'
 
                 if 'ratePlan' in response['data']['body']['searchResults']['results'][hotel]:
-                    price = f"Цена: " \
+                    price = f"Цена за ночь: " \
                             f"{response['data']['body']['searchResults']['results'][hotel]['ratePlan']['price']['current']}"
                 else:
                     price = 'Стоимость отсутствует'

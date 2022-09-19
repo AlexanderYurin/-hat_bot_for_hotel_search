@@ -6,13 +6,19 @@ with sqlite3.connect('data.db') as conn:
     cursor.execute("""CREATE TABLE IF NOT EXISTS history(
        datetime TEXT,
        search TEXT,
-       id_user TEXT,
+       id_user INT,
        history TEXT);
     """)
     conn.commit()
 
 
-def add_user_history(user_filter, id_user, user_history):
+def add_user_history(user_filter: str, id_user: int, user_history: str) -> None:
+    """
+    Эта функция записывает данные в бд.
+    :param user_filter: команда запроса от пользователя.
+    :param id_user: id  пользователя.
+    :param user_history: результат запроса.
+    """
     with sqlite3.connect('data.db') as conn:
         cursor = conn.cursor()
 
@@ -24,8 +30,9 @@ def add_user_history(user_filter, id_user, user_history):
 
 def history(id_user: int) -> str:
     """
-    Эта функция выводит история пользователя
-    :param id_user user_id
+    Эта функция выводит историю пользователя.
+    :param id_user id пользователя.
+    :return: возвращает последнее 5 запросов от пользователя.
     """
     try:
         with sqlite3.connect('data.db') as conn:
